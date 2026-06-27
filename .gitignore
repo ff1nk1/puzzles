@@ -1,0 +1,15 @@
+*.env
+.env*
+
+venv/
+venv/
+ENV/
+
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+.idea/
+.vscode/
+
+.docker/

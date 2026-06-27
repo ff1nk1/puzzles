@@ -1,0 +1,36 @@
+services:
+  backend:
+    build: ./backend
+    image: backend
+    container_name: puzzle_site_backend
+    env_file:
+      - .env
+    networks:
+      - docker_net
+    volumes:
+      - ./backend://app/www/puzzle_site
+
+
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
+
+
+
+
+
+
+
+
+
+  python_compiler:
+    image: python:3.13-slim
+    container_name: python_compiler
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+
+networks:
+  docker_net:
+    driver: bridge
