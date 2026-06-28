@@ -5,17 +5,22 @@ from fastapi.params import Depends
 from pydantic.v1 import NoneIsNotAllowedError
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
+
 from backend.api.schemas.puzzles import Puzzle, UserSolution
 from backend.DB.database import connect_to_db
-from backend.DB.models import Puzzles, Test
+from backend.DB.models import Puzzles, Test, Submission
 from endpoints.auth import auth_user
 from puzzle_funcs import check_solution
 from schemas.puzzles import SolutionResponse, PuzzleTest
 from schemas.user import User
+
 puzzle_router = APIRouter(
     prefix="/puzzles",
     tags=["Puzzle"]
 )
+
+
 @puzzle_router.get("{puzzle_id}",response_model=Puzzle)
 async def get_puzzle(puzzle_id: int, session: AsyncSession = Depends(connect_to_db)):
     puzzle = await session.execute(select(Puzzles).where(Puzzles.id == puzzle_id))#возвращает итератор по объектам таблицы
@@ -54,14 +59,23 @@ async def create_test(puzzle_id:int,
 @puzzle_router.post("/check_solution")
 async def check_user_solution(user_sol: UserSolution,
                         task_id: int,
+                        request: Request,
                         user: User = Depends(auth_user),
                         session: AsyncSession = Depends(connect_to_db)
                         ):
-        sql_query = select(Test).where(Test.task_id == task_id)
-        tests = await session.execute(sql_query)
-        tests = list(tests.scalars().all())
-        info = await check_solution(user_sol.code,tests,user_sol.language)
-        return info
+        new_submission = Submission(
+            task_id = task_id,
+            language = user_sol.language,
+            code = user_sol.code,
+            status="Pending"
+        )
+        session.add(new_submission)
+        await session.commit()
+        await session.refresh(new_submission)
+        arq_pool = request.app.state.arq_pool
+        await arq_pool.enqueue_job('check_submission_task', new_submission.id)
+        return {"status": "Pending", "submission_id": new_submission.id}
+        
 
 
 @puzzle_router.delete("delete/{puzzle_id}")
@@ -86,6 +100,8 @@ async def get_test(test_id: int, session: AsyncSession = Depends(connect_to_db))
     if test.is_private:
         raise HTTPException(status_code=404, detail="Private test")
     return test
+
+
 @puzzle_router.delete("/test/delete/{test_id}")
 async def delete_test(test_id: int,session: AsyncSession = Depends(connect_to_db)):
     sql_query = delete(Test).where(Test.id == test_id).returning(Test)

@@ -2,9 +2,8 @@ import base64
 import json
 import asyncio
 import docker
-from languages.used_lang import LANGUAGE_CONFIGS
 
-
+from backend.api.languages.used_lang import LANGUAGE_CONFIGS
 async def check_solution(code: str, input_data: list, language: str, tl: float = 2.0):
     if language not in LANGUAGE_CONFIGS:
         return {
