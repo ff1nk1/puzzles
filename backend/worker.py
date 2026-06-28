@@ -13,8 +13,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    DATABASE_URL = "postgresql+asyncpg://ffink:1111@localhost:5432/puzzles_site"
+
 
 engine = create_async_engine(DATABASE_URL)
 async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)

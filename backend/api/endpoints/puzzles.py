@@ -75,7 +75,7 @@ async def check_user_solution(user_sol: UserSolution,
         arq_pool = request.app.state.arq_pool
         await arq_pool.enqueue_job('check_submission_task', new_submission.id)
         return {"status": "Pending", "submission_id": new_submission.id}
-        
+
 
 
 @puzzle_router.delete("delete/{puzzle_id}")
@@ -111,6 +111,17 @@ async def delete_test(test_id: int,session: AsyncSession = Depends(connect_to_db
         raise HTTPException(status_code=404, detail="Test not found")
     await session.commit()
     return {"message": "Test deleted"}
+
+
+@puzzle_router.get("/get_submission/{sub_id}")
+async def get_submission(sub_id: int, session: AsyncSession = Depends(connect_to_db)):
+    sql_query = select(Submission).where(Submission.id == sub_id)
+    submission = await session.execute(sql_query)
+    submission = submission.scalar_one_or_none()
+
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    return submission
 ###TODO
 ###1.Ручку для того, чтобы получать джсон с решением от конкретного пользоватея(нужно добавить адекватные скрипты по словарю, чтобы не передавать в json python:3.13-slim - скачать образы и допроверить
 ###2. Регистрация, авторизация и тд + (может переделать в jwt)??? - надо
