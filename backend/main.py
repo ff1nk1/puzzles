@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -7,10 +8,12 @@ from fastapi import FastAPI
 
 from backend.api.endpoints.puzzles import puzzle_router
 from backend.api.endpoints.auth import auth_router
+
+redis_host = os.getenv("REDIS_HOST", "localhost")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # При старте создаем пул подключений к ARQ Redis
-    app.state.arq_pool = await create_pool(RedisSettings(host='localhost', port=6379))
+    app.state.arq_pool = await create_pool(RedisSettings(host=redis_host, port=6379))
     yield
     # При выключении закрываем пул
     await app.state.arq_pool.close()
