@@ -5,6 +5,25 @@ import docker
 
 from backend.api.languages.used_lang import LANGUAGE_CONFIGS
 
+
+def make_encoded_script(raw_template:str,code:str):
+    full_script_text = raw_template.replace("{USER_CODE_PLACEHOLDER}", code)
+    encoded_script = base64.b64encode(full_script_text.encode('utf-8')).decode('utf-8')
+    return encoded_script
+
+
+def make_setup_cmd(extension:str,encoded_script:str):
+    filename = f"runner.{extension}"
+    setup_cmd = f"sh -c \"echo '{encoded_script}' | base64 -d > {filename}\""
+    return setup_cmd
+
+
+def make_encoded_input(tests):
+    plain_input = "\n".join(str(val) for val in tests.values()) + "\n"
+    encoded_input = base64.b64encode(plain_input.encode('utf-8')).decode('utf-8')
+    return encoded_input
+
+
 async def check_solution(code: str, input_data: list, language: str, tl: float = 2.0):
     if language not in LANGUAGE_CONFIGS:
         return {
@@ -18,9 +37,7 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
     local_client = docker.from_env()
 
     raw_template = cfg['template']
-    full_script_text = raw_template.replace("{USER_CODE_PLACEHOLDER}", code)
-    encoded_script = base64.b64encode(full_script_text.encode('utf-8')).decode('utf-8')
-
+    encoded_script = make_encoded_script(raw_template, code)
     container = None
     try:
         container = await loop.run_in_executor(None, lambda: local_client.containers.run(
@@ -33,8 +50,7 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
             detach=True,
         ))
 
-        filename = f"runner.{cfg['extension']}"
-        setup_cmd = f"sh -c \"echo '{encoded_script}' | base64 -d > {filename}\""
+        setup_cmd = make_setup_cmd(cfg['extension'],encoded_script)
         await loop.run_in_executor(None, lambda: container.exec_run(cmd=setup_cmd))
 
         if cfg.get("compile_cmd"):
@@ -51,8 +67,7 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
         for index, test in enumerate(input_data, start=1):
             args_dict = json.loads(test.input_data)
 
-            plain_input = "\n".join(str(val) for val in args_dict.values()) + "\n"
-            encoded_input = base64.b64encode(plain_input.encode('utf-8')).decode('utf-8')
+            encoded_input = make_encoded_input(args_dict)
 
             exec_command = f"sh -c \"echo '{encoded_input}' | base64 -d | timeout {tl} {cfg['run_cmd']}\""
             exec_result = await loop.run_in_executor(None, lambda: container.exec_run(cmd=exec_command))
@@ -97,10 +112,15 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
                     "detail": f"Тест №{index} провален. Ожидалось: {expected_output}, Получено: {user_output}"
                 }
 
-        return {"verdict": "Accepted", "test_id": None, "detail": "Все тесты успешно пройдены!"}
+        return {"verdict": "Accepted",
+                "test_id": None,
+                "detail": "Все тесты успешно пройдены!"}
 
     except Exception as e:
-        return {"verdict": "Container Error", "test_id": None, "detail": str(e)}
+        return {"verdict":
+                "Container Error",
+                "test_id": None,
+                "detail": str(e)}
 
     finally:
         if container:

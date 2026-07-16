@@ -1,65 +1,67 @@
 import os
 from dotenv import load_dotenv
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from arq.connections import RedisSettings
-from sqlalchemy import select
 
+from backend.DB.models import Submission
 from backend.api.puzzle_funcs import check_solution
-from backend.DB.models import Submission, PuzzleTest
-
+from backend.repositories.puzzle_test import PuzzleTestRepository
+from backend.repositories.submission import SubmissionRepository
+from backend.services.puzzle import PuzzleService
+from backend.services.submission import SubmissionService
+from backend.core.custom_exceptions import SubmissionNotFoundError
 
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-
-
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 
 engine = create_async_engine(DATABASE_URL)
 async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def check_submission_task(ctx, submission_id: int):
-    print(f"ARQ Воркер взял в работу попытку №{submission_id}")
+    print(f"🔍 Воркер взял в работу попытку №{submission_id}")
 
     async with async_session() as db_session:
-        #Считываем попытку решения из базы
-        stmt = select(Submission).where(Submission.id == submission_id)
-        result = await db_session.execute(stmt)
-        submission = result.scalar_one_or_none()
+        submission_repo = SubmissionRepository(db_session)
+        submission_service = SubmissionService(submission_repo)
+        puzzle_test_repo = PuzzleTestRepository(db_session)
+        puzzle_service = PuzzleService(puzzle_test_repo=puzzle_test_repo)
 
-        if not submission:
-            print(f"Ошибка: Попытка №{submission_id} не найдена в БД.")
-            return
+        try:
+            # 1. Получаем объект
+            submission = await submission_service.get_submission(submission_id)
+            print(f"✅ Найдена попытка №{submission.id}: статус={submission.status}")
 
-        #Меняем статус на "In Progress"
-        submission.status = "In Progress"
-        await db_session.commit()
+            # 2. Обновляем статус напрямую (без вызова сервиса)
+            submission.status = "In Progress"
+            await db_session.commit()  # сохраняем изменения
 
-        current_task_id = submission.task_id
+            # 3. Получаем тесты
+            tests = await puzzle_service.get_all_tests_to_puzzle(submission.task_id)
 
-        tests_stmt = select(PuzzleTest).where(PuzzleTest.task_id == current_task_id)
-        tests_result = await db_session.execute(tests_stmt)
-        input_data = list(tests_result.scalars().all())
+            # 4. Запускаем проверку
+            verdict_data = await check_solution(
+                code=submission.code,
+                input_data=tests,
+                language=submission.language,
+                tl=2.0
+            )
 
-        verdict_data = await check_solution(
-            code=submission.code,
-            input_data=input_data,
-            language=submission.language,
-            tl=2.0
-        )
-        submission.status = "Completed"
-        submission.verdict = verdict_data["verdict"]
-        submission.detail = verdict_data.get("detail", "")
-        await db_session.commit()
+            # 5. Обновляем результат напрямую
+            submission.status = "Completed"
+            submission.verdict = verdict_data["verdict"]
+            submission.detail = verdict_data.get("detail", "")
+            await db_session.commit()  # сохраняем финальные изменения
 
-        print(f"Попытка №{submission_id} проверена."
-              f" Вердикт: {submission.verdict}\n"
-              f"Информация: {submission.detail}",sep='\n')
+            print(f"✅ Попытка №{submission_id} проверена. Вердикт: {verdict_data['verdict']}")
 
+        except SubmissionNotFoundError:
+            print(f"❌ Ошибка: Попытка №{submission_id} не найдена в БД.")
 
 class WorkerSettings:
     functions = [check_submission_task]
-
-    redis_settings = RedisSettings(host='localhost', port=6379)
-
+    redis_settings = RedisSettings(host=REDIS_HOST, port=6379)
     max_jobs = 2
