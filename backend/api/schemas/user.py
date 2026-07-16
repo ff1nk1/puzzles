@@ -1,9 +1,17 @@
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.sql.annotation import Annotated
+from pydantic import BaseModel, EmailStr, ConfigDict
+from datetime import datetime
 
-from backend.DB.database import Base
+
 class User(BaseModel):
     username: str
-    password: str
 class UserRegister(User):
+    password: str
     email: EmailStr
+
+class UserResponse(User):
+    id:int
+
+class RefreshTokenToAdd(BaseModel):
+    user_id: int
+    token_hash: str
+    expires_at: datetime

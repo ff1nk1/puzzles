@@ -7,7 +7,7 @@ from backend.core.config import settings
 #alembic upgrade head
 
 engine = create_async_engine(settings.ASYNC_DATABASE_URL)  # создали движок БД
-async_session_maker = async_sessionmaker(engine, class_=AsyncSession)  # передали наш движок в создатель сессий
+async_session_maker = async_sessionmaker(engine, class_=AsyncSession,expire_on_commit=False)  # передали наш движок в создатель сессий
 
 async def connect_to_db():
     async with async_session_maker() as session:

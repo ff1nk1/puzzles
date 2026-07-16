@@ -6,13 +6,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=find_dotenv(),
     )
-
+    MODE: str = "DEV"
     DB_HOST: str
     DB_PORT: str
     DB_USER: str
     DB_PASS: str
     DB_NAME: str
     DATABASE_URL: str
+    SECRET_KEY: str
 
     redis_host: str = "localhost"
 

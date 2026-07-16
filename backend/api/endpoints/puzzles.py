@@ -1,19 +1,16 @@
-from termios import TIOCPKT_DOSTOP
 
 from fastapi import APIRouter, HTTPException
 from fastapi.params import Depends
-from pydantic.v1 import NoneIsNotAllowedError
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, Select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
 from backend.api.schemas.puzzles import Puzzle, UserSolution
 from backend.DB.database import connect_to_db
-from backend.DB.models import Puzzles, Test, Submission
-from endpoints.auth import auth_user
-from puzzle_funcs import check_solution
-from schemas.puzzles import SolutionResponse, PuzzleTest
-from schemas.user import User
+from backend.DB.models import Puzzles, PuzzleTest, Submission
+from backend.api.schemas.puzzles import SolutionResponse, PuzzleTestPD, PuzzleResponse
+from backend.api.dependencies.auth import get_current_user
+from backend.repositories.puzzles import PuzzlesRepository
 
 puzzle_router = APIRouter(
     prefix="/puzzles",
@@ -21,16 +18,16 @@ puzzle_router = APIRouter(
 )
 
 
-@puzzle_router.get("{puzzle_id}",response_model=Puzzle)
+@puzzle_router.get("/{puzzle_id}",response_model=PuzzleResponse)
 async def get_puzzle(puzzle_id: int, session: AsyncSession = Depends(connect_to_db)):
-    puzzle = await session.execute(select(Puzzles).where(Puzzles.id == puzzle_id))#возвращает итератор по объектам таблицы
-    puzzle = puzzle.scalar_one_or_none()#
+    puzzles_repo = PuzzlesRepository(session)
+    puzzle = await puzzles_repo.get_one(puzzle_id)
     if puzzle is None:
         raise HTTPException(status_code=404, detail="Puzzle not found")
     return puzzle
 
 
-@puzzle_router.post("/create_puzzle",response_model=Puzzle)
+@puzzle_router.post("/create_puzzle",response_model=PuzzleResponse)
 async def create_puzzle(puzzle: Puzzle, session: AsyncSession = Depends(connect_to_db)):
     new_puzzle = Puzzles(**puzzle.model_dump())
     session.add(new_puzzle)
@@ -38,17 +35,16 @@ async def create_puzzle(puzzle: Puzzle, session: AsyncSession = Depends(connect_
     await session.refresh(new_puzzle)
     return new_puzzle
 
-@puzzle_router.post("/create_test/{puzzle_id}",response_model=PuzzleTest)
+@puzzle_router.post("/create_test/{puzzle_id}",response_model=PuzzleTestPD)
 async def create_test(puzzle_id:int,
-                test: PuzzleTest,
-                user: User = Depends(auth_user),
+                test: PuzzleTestPD,
                 session: AsyncSession = Depends(connect_to_db)):
     sql_query = select(Puzzles).where(Puzzles.id == puzzle_id)
     res = await session.execute(sql_query)
     res = res.scalar_one_or_none()
     if res is None:
         raise HTTPException(status_code=404, detail="Puzzle not found")
-    new_test = Test(**test.model_dump())
+    new_test = PuzzleTest(**test.model_dump())
     new_test.task_id = puzzle_id
     session.add(new_test)
     await session.commit()
@@ -60,9 +56,13 @@ async def create_test(puzzle_id:int,
 async def check_user_solution(user_sol: UserSolution,
                         task_id: int,
                         request: Request,
-                        user: User = Depends(auth_user),
+                        current_user: str = Depends(get_current_user),
                         session: AsyncSession = Depends(connect_to_db)
                         ):
+        check_task_in_db = await session.execute(Select(Puzzles).where(Puzzles.id == task_id))
+        check_task_in_db = check_task_in_db.scalar_one_or_none()
+        if not check_task_in_db:
+            raise HTTPException(status_code=404, detail="Task not found")
         new_submission = Submission(
             task_id = task_id,
             language = user_sol.language,
@@ -78,7 +78,7 @@ async def check_user_solution(user_sol: UserSolution,
 
 
 
-@puzzle_router.delete("delete/{puzzle_id}")
+@puzzle_router.delete("/delete/{puzzle_id}")
 async def delete_puzzle(puzzle_id: int,session: AsyncSession = Depends(connect_to_db)):
     sql_query = delete(Puzzles).where(Puzzles.id == puzzle_id).returning(Puzzles)
 
@@ -92,7 +92,7 @@ async def delete_puzzle(puzzle_id: int,session: AsyncSession = Depends(connect_t
 
 @puzzle_router.get("/get_test/{test_id}")
 async def get_test(test_id: int, session: AsyncSession = Depends(connect_to_db)):
-    sql_query = select(Test).where(Test.id == test_id)
+    sql_query = select(PuzzleTest).where(PuzzleTest.id == test_id)
     test = await session.execute(sql_query)
     test = test.scalar_one_or_none()
     if test is None:
@@ -104,7 +104,7 @@ async def get_test(test_id: int, session: AsyncSession = Depends(connect_to_db))
 
 @puzzle_router.delete("/test/delete/{test_id}")
 async def delete_test(test_id: int,session: AsyncSession = Depends(connect_to_db)):
-    sql_query = delete(Test).where(Test.id == test_id).returning(Test)
+    sql_query = delete(PuzzleTest).where(PuzzleTest.id == test_id).returning(PuzzleTest)
     del_test = await session.execute(sql_query)
     del_test = del_test.scalar_one_or_none()
     if del_test is None:

@@ -1,12 +1,11 @@
-
-from arq.connections import RedisSettings
-from sqlalchemy import select
-#arq backend.worker.WorkerSettings
-from backend.api.puzzle_funcs import check_solution
-from backend.DB.models import Submission, Test
 import os
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from arq.connections import RedisSettings
+from sqlalchemy import select
+
+from backend.api.puzzle_funcs import check_solution
+from backend.DB.models import Submission, PuzzleTest
 
 
 load_dotenv()
@@ -38,7 +37,7 @@ async def check_submission_task(ctx, submission_id: int):
 
         current_task_id = submission.task_id
 
-        tests_stmt = select(Test).where(Test.task_id == current_task_id)
+        tests_stmt = select(PuzzleTest).where(PuzzleTest.task_id == current_task_id)
         tests_result = await db_session.execute(tests_stmt)
         input_data = list(tests_result.scalars().all())
 

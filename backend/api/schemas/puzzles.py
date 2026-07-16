@@ -1,5 +1,4 @@
 from typing import Optional
-
 from pydantic import BaseModel, Field
 from sqlalchemy.sql.annotation import Annotated
 
@@ -9,7 +8,10 @@ class Puzzle(BaseModel):
     description: str
     difficulty: str
 
-class PuzzleTest(BaseModel):
+class PuzzleResponse(Puzzle):
+    id: int
+
+class PuzzleTestPD(BaseModel):
     input_data:str
     expected_output:str
     is_private:bool = Annotated[bool, Field(default=False)]
