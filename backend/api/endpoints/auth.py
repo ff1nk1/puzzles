@@ -14,7 +14,7 @@ from backend.core.custom_exceptions import (
 )
 from backend.api.schemas.user import UserRegister, UserResponse
 from backend.services.user import UserService
-from dependencies.puzzles import get_user_service
+from backend.api.dependencies.puzzles import get_user_service
 
 pwd_context = PasswordHash.recommended()
 

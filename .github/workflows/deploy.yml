@@ -13,7 +13,7 @@ env:
 
 jobs:
   # ============================================
-  # СТАДИЯ 1: Только тесты (без линтера)
+  # СТАДИЯ 1: Тесты (запуск из корня проекта)
   # ============================================
   test:
     name: Run Tests
@@ -43,15 +43,15 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          cd backend
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
+          # Запускаем из корня проекта, указывая путь к тестам
+          PYTHONPATH=. pytest backend/tests/ -v --cov=backend --cov-report=xml --cov-report=term
         env:
           ENVIRONMENT: test
 
-      - name: Upload coverage to Codecov (optional)
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: ./backend/coverage.xml
+          file: ./coverage.xml
           flags: unittests
           fail_ci_if_error: false
 
@@ -90,7 +90,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ============================================
-  # СТАДИЯ 3: Деплой на сервер (пока закомментирован)
+  # СТАДИЯ 3: Деплой (пока закомментирован)
   # ============================================
   # deploy:
   #   name: Deploy to Production

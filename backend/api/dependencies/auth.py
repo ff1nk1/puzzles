@@ -1,8 +1,7 @@
-# dependencies/auth.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from core.custom_exceptions import UserNotFoundError
+from backend.core.custom_exceptions import UserNotFoundError
 from backend.services.security import JWTService
 import jwt
 
