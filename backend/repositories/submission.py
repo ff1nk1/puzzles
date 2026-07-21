@@ -11,10 +11,6 @@ class SubmissionRepository(SQLAlchemyRepository):
         if not fields:
             return  # Ничего не обновляем
 
-        stmt = (
-            update(self.model)
-            .where(self.model.id == obj_id)
-            .values(**fields)
-        )
+        stmt = update(self.model).where(self.model.id == obj_id).values(**fields)
         await self.session.execute(stmt)
         await self.session.commit()

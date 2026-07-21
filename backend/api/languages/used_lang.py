@@ -25,8 +25,7 @@ if __name__ == '__main__':
         res = solution(*args)
         # Выводим в stdout только результат! А Python-бэкенд его прочитает
         print(res)
-"""
-
+""",
     },
     "cpp": {
         "image": "gcc:14",  #
@@ -49,9 +48,9 @@ int main() {
     }
     return 0;
 }
-"""
+""",
     },
-        "java": {
+    "java": {
         "image": "eclipse-temurin:21-jdk-jammy",
         "extension": "java",
         "compile_cmd": "javac runner.java",
@@ -74,8 +73,6 @@ public class runner {
 }
 
 {USER_CODE_PLACEHOLDER}
-"""
-
-
-    }
+""",
+    },
 }

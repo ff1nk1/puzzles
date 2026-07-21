@@ -2,11 +2,10 @@ from backend.core.custom_exceptions import SubmissionNotFoundError
 
 
 class SubmissionService:
-    def __init__(self,submission_repo = None):
+    def __init__(self, submission_repo=None):
         self.submission_repo = submission_repo
 
-
-    async def get_submission(self,test_id):
+    async def get_submission(self, test_id):
         submission = await self.submission_repo.get_one(test_id)
         if submission is None:
             raise SubmissionNotFoundError()

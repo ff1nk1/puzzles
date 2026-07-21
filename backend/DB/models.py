@@ -13,13 +13,17 @@ class Puzzles(Base):
     title: Mapped[str]
     description: Mapped[str]
     difficulty: Mapped[str]
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
 
-    tests: Mapped[list["PuzzleTest"]] = relationship(back_populates="puzzle", cascade="all, delete-orphan")
+    tests: Mapped[list["PuzzleTest"]] = relationship(
+        back_populates="puzzle", cascade="all, delete-orphan"
+    )
     submissions: Mapped[List["Submission"]] = relationship(
         "Submission",
         back_populates="puzzle",
-        cascade="all, delete-orphan"  # Если удалить пазл, удалятся и все его попытки
+        cascade="all, delete-orphan",  # Если удалить пазл, удалятся и все его попытки
     )
 
 
@@ -27,7 +31,9 @@ class PuzzleTest(Base):
     __tablename__ = "tests"
     __table_args__ = {"extend_existing": True}
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey('puzzles.id',ondelete="CASCADE"), nullable=False, index=True)
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("puzzles.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     input_data: Mapped[str] = mapped_column(nullable=False)
     expected_output: Mapped[str] = mapped_column(nullable=False)
     is_private: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -39,8 +45,8 @@ class Users(Base):
     __tablename__ = "users"
     __table_args__ = {"extend_existing": True}
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
-    username: Mapped[str] = mapped_column(nullable=False,unique=True)
-    email: Mapped[str] = mapped_column(nullable=False,unique=True)
+    username: Mapped[str] = mapped_column(nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(nullable=False, unique=True)
     hashed_password: Mapped[str]
 
 
@@ -48,7 +54,9 @@ class Submission(Base):
     __tablename__ = "submissions"
     __table_args__ = {"extend_existing": True}
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey('puzzles.id',ondelete="CASCADE"), nullable=False, index=True)
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("puzzles.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     language: Mapped[str] = mapped_column(nullable=False)
     code: Mapped[str] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)
@@ -65,4 +73,9 @@ class RefreshToken(Base):
     token_hash: Mapped[str] = mapped_column(String(255), unique=True)
     expires_at: Mapped[datetime.datetime] = mapped_column()
     revoked: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, server_default=func.now(), default=datetime.datetime.utcnow())
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        default=datetime.datetime.utcnow(),
+    )

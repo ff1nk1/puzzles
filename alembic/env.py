@@ -1,5 +1,5 @@
 import os  # Добавили импорт os для извлечения из окружения наших переменных
-import sys  # Добавили импорт модуля sys для работы с путями 
+import sys  # Добавили импорт модуля sys для работы с путями
 # (sys нужен для дальнейших импортов, иначе алембик не увидит нашу app папку)
 
 from logging.config import fileConfig
@@ -8,13 +8,12 @@ from alembic import context
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
-# Тут добавили в пути нашу папку app, чтобы алембик её увидел. 
+# Тут добавили в пути нашу папку app, чтобы алембик её увидел.
 # Порядок импортов специально нарушен, т.к. код выполняется построчно
-sys.path.append(os.path.join(sys.path[0], 'backend'))
+sys.path.append(os.path.join(sys.path[0], "backend"))
 
 from backend.core.config import settings  # Добавили импорт нашего конфига
 from backend.DB.database import Base  # Добавили импорт нашей мета-БД
-from backend.DB.models import Puzzles  # Добавили импорт модели, чтобы она инициализировалась, но она не используется
 # без этого импорта алембик может не увидеть наши модели и создаст пустую миграцию
 
 
@@ -39,7 +38,9 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = Base.metadata  # И последнее - дописали, что наша целевая метаинформация содержится в классе Base
+target_metadata = (
+    Base.metadata
+)  # И последнее - дописали, что наша целевая метаинформация содержится в классе Base
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -85,9 +86,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

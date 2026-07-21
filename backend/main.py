@@ -10,6 +10,8 @@ from backend.api.endpoints.puzzles import puzzle_router
 from backend.api.endpoints.auth import auth_router
 
 redis_host = os.getenv("REDIS_HOST", "localhost")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # При старте создаем пул подключений к ARQ Redis

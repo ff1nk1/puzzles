@@ -1,10 +1,8 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from arq.connections import RedisSettings
 
-from backend.DB.models import Submission
 from backend.api.puzzle_funcs import check_solution
 from backend.repositories.puzzle_test import PuzzleTestRepository
 from backend.repositories.submission import SubmissionRepository
@@ -18,7 +16,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 
 engine = create_async_engine(DATABASE_URL)
-async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+async_session = async_sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 async def check_submission_task(ctx, submission_id: int):
@@ -47,19 +47,24 @@ async def check_submission_task(ctx, submission_id: int):
                 code=submission.code,
                 input_data=tests,
                 language=submission.language,
-                tl=2.0
+                tl=2.0,
             )
 
             # 5. Обновляем результат напрямую
             submission.status = "Completed"
             submission.verdict = verdict_data["verdict"]
             submission.detail = verdict_data.get("detail", "")
-            await db_session.commit()  # сохраняем финальные изменения
+            await db_session.commit()
 
-            print(f"✅ Попытка №{submission_id} проверена. Вердикт: {verdict_data['verdict']}")
+            print(
+                f"Попытка №{submission_id} проверена.\n"
+                f"Вердикт: {verdict_data['verdict']}\n"
+                f"Информация: {verdict_data['detail']}\n",
+            )
 
         except SubmissionNotFoundError:
             print(f"❌ Ошибка: Попытка №{submission_id} не найдена в БД.")
+
 
 class WorkerSettings:
     functions = [check_submission_task]

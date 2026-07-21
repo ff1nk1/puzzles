@@ -6,13 +6,13 @@ import docker
 from backend.api.languages.used_lang import LANGUAGE_CONFIGS
 
 
-def make_encoded_script(raw_template:str,code:str):
+def make_encoded_script(raw_template: str, code: str):
     full_script_text = raw_template.replace("{USER_CODE_PLACEHOLDER}", code)
-    encoded_script = base64.b64encode(full_script_text.encode('utf-8')).decode('utf-8')
+    encoded_script = base64.b64encode(full_script_text.encode("utf-8")).decode("utf-8")
     return encoded_script
 
 
-def make_setup_cmd(extension:str,encoded_script:str):
+def make_setup_cmd(extension: str, encoded_script: str):
     filename = f"runner.{extension}"
     setup_cmd = f"sh -c \"echo '{encoded_script}' | base64 -d > {filename}\""
     return setup_cmd
@@ -20,7 +20,7 @@ def make_setup_cmd(extension:str,encoded_script:str):
 
 def make_encoded_input(tests):
     plain_input = "\n".join(str(val) for val in tests.values()) + "\n"
-    encoded_input = base64.b64encode(plain_input.encode('utf-8')).decode('utf-8')
+    encoded_input = base64.b64encode(plain_input.encode("utf-8")).decode("utf-8")
     return encoded_input
 
 
@@ -29,28 +29,31 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
         return {
             "verdict": "Container Error",
             "test_id": None,
-            "detail": f"Язык '{language}' не поддерживается тестирующей системой."
+            "detail": f"Язык '{language}' не поддерживается тестирующей системой.",
         }
 
     cfg = LANGUAGE_CONFIGS[language]
     loop = asyncio.get_running_loop()
     local_client = docker.from_env()
 
-    raw_template = cfg['template']
+    raw_template = cfg["template"]
     encoded_script = make_encoded_script(raw_template, code)
     container = None
     try:
-        container = await loop.run_in_executor(None, lambda: local_client.containers.run(
-            image=cfg['image'],
-            command="sleep 300",
-            network_disabled=True,
-            mem_limit="256m",
-            memswap_limit="256m",
-            nano_cpus=250000000,
-            detach=True,
-        ))
+        container = await loop.run_in_executor(
+            None,
+            lambda: local_client.containers.run(
+                image=cfg["image"],
+                command="sleep 300",
+                network_disabled=True,
+                mem_limit="256m",
+                memswap_limit="256m",
+                nano_cpus=250000000,
+                detach=True,
+            ),
+        )
 
-        setup_cmd = make_setup_cmd(cfg['extension'],encoded_script)
+        setup_cmd = make_setup_cmd(cfg["extension"], encoded_script)
         await loop.run_in_executor(None, lambda: container.exec_run(cmd=setup_cmd))
 
         if cfg.get("compile_cmd"):
@@ -61,7 +64,7 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
                 return {
                     "verdict": "Compilation Error",
                     "test_id": None,
-                    "detail": f"Ошибка компиляции:\n{compile_result.output.decode('utf-8')}"
+                    "detail": f"Ошибка компиляции:\n{compile_result.output.decode('utf-8')}",
                 }
 
         for index, test in enumerate(input_data, start=1):
@@ -70,35 +73,37 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
             encoded_input = make_encoded_input(args_dict)
 
             exec_command = f"sh -c \"echo '{encoded_input}' | base64 -d | timeout {tl} {cfg['run_cmd']}\""
-            exec_result = await loop.run_in_executor(None, lambda: container.exec_run(cmd=exec_command))
+            exec_result = await loop.run_in_executor(
+                None, lambda: container.exec_run(cmd=exec_command)
+            )
 
             if exec_result.exit_code == 124:
                 return {
                     "verdict": "Time Limit Exceeded",
                     "test_id": test.id,
-                    "detail": f"Превышено время выполнения на тесте №{index} ({tl} сек.)"
+                    "detail": f"Превышено время выполнения на тесте №{index} ({tl} сек.)",
                 }
             if exec_result.exit_code == 137:
                 return {
                     "verdict": "Time Limit Exceeded",
                     "test_id": test.id,
-                    "detail": f"Исчерпан лимит памяти на тесте №{index}"
+                    "detail": f"Исчерпан лимит памяти на тесте №{index}",
                 }
 
-            response = exec_result.output.decode('utf-8').strip()
+            response = exec_result.output.decode("utf-8").strip()
 
             if exec_result.exit_code != 0:
                 return {
                     "verdict": "Runtime Error",
                     "test_id": test.id,
-                    "detail": f"Ошибка выполнения (Runtime Error). Лог: {response}"
+                    "detail": f"Ошибка выполнения (Runtime Error). Лог: {response}",
                 }
 
             if not response:
                 return {
                     "verdict": "Runtime Error",
                     "test_id": test.id,
-                    "detail": f"Контейнер вернул пустой ответ на тесте №{index}."
+                    "detail": f"Контейнер вернул пустой ответ на тесте №{index}.",
                 }
 
             # Сравниваем чистый вывод программы с ожидаемым результатом напрямую
@@ -109,18 +114,17 @@ async def check_solution(code: str, input_data: list, language: str, tl: float =
                 return {
                     "verdict": "Wrong Answer",
                     "test_id": test.id,
-                    "detail": f"Тест №{index} провален. Ожидалось: {expected_output}, Получено: {user_output}"
+                    "detail": f"Тест №{index} провален. Ожидалось: {expected_output}, Получено: {user_output}",
                 }
 
-        return {"verdict": "Accepted",
-                "test_id": None,
-                "detail": "Все тесты успешно пройдены!"}
+        return {
+            "verdict": "Accepted",
+            "test_id": None,
+            "detail": "Все тесты успешно пройдены!",
+        }
 
     except Exception as e:
-        return {"verdict":
-                "Container Error",
-                "test_id": None,
-                "detail": str(e)}
+        return {"verdict": "Container Error", "test_id": None, "detail": str(e)}
 
     finally:
         if container:
