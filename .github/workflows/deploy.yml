@@ -73,7 +73,6 @@ jobs:
         run: |
           PYTHONPATH=.:./backend pytest backend/tests/ -v --cov=backend --cov-report=xml --cov-report=term
         env:
-          # === ПОДКЛЮЧАЕМСЯ К POSTGRESQL В CI ===
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: test_user
