@@ -16,14 +16,13 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
 
-    # === ПОДНИМАЕМ POSTGRESQL С ТВОИМИ КРЕДАМИ ===
     services:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ffink          # ← Твой пользователь
-          POSTGRES_PASSWORD: 1111       # ← Твой пароль
-          POSTGRES_DB: puzzles_site     # ← Твоя БД
+          POSTGRES_USER: ffink
+          POSTGRES_PASSWORD: 1111
+          POSTGRES_DB: puzzles_site
         ports:
           - 5432:5432
         options: >-
@@ -70,14 +69,13 @@ jobs:
         run: |
           PYTHONPATH=.:./backend pytest backend/tests/ -v --cov=backend --cov-report=xml --cov-report=term
         env:
-          # === ТВОИ ПЕРЕМЕННЫЕ (НО ХОСТ МЕНЯЕМ НА localhost) ===
-          DB_HOST: localhost  # ← Единственное, что меняем!
+          DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: ffink
           DB_PASS: 1111
           DB_NAME: puzzles_site
           DATABASE_URL: postgresql+asyncpg://ffink:1111@localhost:5432/puzzles_site
-          REDIS_HOST: localhost  # ← Redis тоже меняем на localhost
+          REDIS_HOST: localhost
           MODE: TEST
           SECRET_KEY: "CyhFX83gSKiOBAsErJcxwQ2IWIfnH7razpoqGSFicR0="
 
