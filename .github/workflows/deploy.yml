@@ -65,6 +65,12 @@ jobs:
             sleep 1
           done
 
+      - name: Remove .env file
+        run: |
+          rm -f .env
+          rm -f backend/.env
+          echo "Removed .env files"
+
       - name: Run tests
         run: |
           PYTHONPATH=.:./backend pytest backend/tests/ -v --cov=backend --cov-report=xml --cov-report=term
