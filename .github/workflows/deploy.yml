@@ -13,11 +13,28 @@ env:
 
 jobs:
   # ============================================
-  # СТАДИЯ 1: Тесты (запуск из корня проекта)
+  # СТАДИЯ 1: Тесты с PostgreSQL
   # ============================================
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+
+    # === ПОДНИМАЕМ POSTGRESQL ДЛЯ ТЕСТОВ ===
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,12 +58,31 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pytest pytest-asyncio pytest-cov
 
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U test_user; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL... $i/30"
+            sleep 1
+          done
+
       - name: Run tests with coverage
         run: |
-          # Запускаем из корня проекта, указывая путь к тестам
-          PYTHONPATH=. pytest backend/tests/ -v --cov=backend --cov-report=xml --cov-report=term
+          PYTHONPATH=.:./backend pytest backend/tests/ -v --cov=backend --cov-report=xml --cov-report=term
         env:
-          ENVIRONMENT: test
+          # === ПОДКЛЮЧАЕМСЯ К POSTGRESQL В CI ===
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: test_user
+          DB_PASS: test_password
+          DB_NAME: test_db
+          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
+          REDIS_HOST: localhost
+          MODE: TEST
+          SECRET_KEY: test_secret_key_for_ci_only_123456789
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
