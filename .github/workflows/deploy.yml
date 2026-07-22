@@ -12,21 +12,18 @@ env:
   PYTHON_VERSION: '3.13'
 
 jobs:
-  # ============================================
-  # СТАДИЯ 1: Тесты с PostgreSQL
-  # ============================================
   test:
     name: Run Tests
     runs-on: ubuntu-latest
 
-    # === ПОДНИМАЕМ POSTGRESQL ДЛЯ ТЕСТОВ ===
+    # === ПОДНИМАЕМ POSTGRESQL С ТВОИМИ КРЕДАМИ ===
     services:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
+          POSTGRES_USER: ffink          # ← Твой пользователь
+          POSTGRES_PASSWORD: 1111       # ← Твой пароль
+          POSTGRES_DB: puzzles_site     # ← Твоя БД
         ports:
           - 5432:5432
         options: >-
@@ -58,10 +55,10 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pytest pytest-asyncio pytest-cov
 
-      - name: Wait for PostgreSQL to be ready
+      - name: Wait for PostgreSQL
         run: |
           for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U test_user; then
+            if pg_isready -h localhost -p 5432 -U ffink; then
               echo "PostgreSQL is ready!"
               break
             fi
@@ -69,30 +66,28 @@ jobs:
             sleep 1
           done
 
-      - name: Run tests with coverage
+      - name: Run tests
         run: |
           PYTHONPATH=.:./backend pytest backend/tests/ -v --cov=backend --cov-report=xml --cov-report=term
         env:
-          DB_HOST: localhost
+          # === ТВОИ ПЕРЕМЕННЫЕ (НО ХОСТ МЕНЯЕМ НА localhost) ===
+          DB_HOST: localhost  # ← Единственное, что меняем!
           DB_PORT: 5432
-          DB_USER: test_user
-          DB_PASS: test_password
-          DB_NAME: test_db
-          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
-          REDIS_HOST: localhost
+          DB_USER: ffink
+          DB_PASS: 1111
+          DB_NAME: puzzles_site
+          DATABASE_URL: postgresql+asyncpg://ffink:1111@localhost:5432/puzzles_site
+          REDIS_HOST: localhost  # ← Redis тоже меняем на localhost
           MODE: TEST
-          SECRET_KEY: test_secret_key_for_ci_only_123456789
+          SECRET_KEY: "CyhFX83gSKiOBAsErJcxwQ2IWIfnH7razpoqGSFicR0="
 
-      - name: Upload coverage to Codecov
+      - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
           flags: unittests
           fail_ci_if_error: false
 
-  # ============================================
-  # СТАДИЯ 2: Сборка и пуш образа
-  # ============================================
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
@@ -123,26 +118,3 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ============================================
-  # СТАДИЯ 3: Деплой (пока закомментирован)
-  # ============================================
-  # deploy:
-  #   name: Deploy to Production
-  #   runs-on: ubuntu-latest
-  #   needs: build-and-push
-  #   if: github.ref == 'refs/heads/main'
-  #   steps:
-  #     - name: Deploy via SSH
-  #       uses: appleboy/ssh-action@v1.0.3
-  #       with:
-  #         host: ${{ secrets.SERVER_HOST }}
-  #         username: ${{ secrets.SERVER_USER }}
-  #         key: ${{ secrets.SSH_PRIVATE_KEY }}
-  #         port: ${{ secrets.SERVER_PORT || 22 }}
-  #         script: |
-  #           cd /opt/puzzles
-  #           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-  #           docker compose pull
-  #           docker compose up -d --remove-orphans
-  #           docker image prune -f
