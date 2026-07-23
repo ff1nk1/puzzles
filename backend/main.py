@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from backend.api.endpoints.puzzles import puzzle_router
 from backend.api.endpoints.auth import auth_router
+from backend.api.endpoints.health import router as health_router
 
 redis_host = os.getenv("REDIS_HOST", "localhost")
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(puzzle_router)
 app.include_router(auth_router)
+app.include_router(health_router)
 
 if __name__ == "__main__":
     uvicorn.run(app="main:app")
