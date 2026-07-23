@@ -1,10 +1,11 @@
-from dotenv import find_dotenv
+# backend/core/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=find_dotenv(),
+        # env_file=find_dotenv(),  #для ci/cd закомментировано
+        extra='ignore'
     )
     MODE: str = "DEV"
     DB_HOST: str
@@ -14,7 +15,6 @@ class Settings(BaseSettings):
     DB_NAME: str
     DATABASE_URL: str
     SECRET_KEY: str
-
     redis_host: str = "localhost"
 
     @property

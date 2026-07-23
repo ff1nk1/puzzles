@@ -1,0 +1,58 @@
+name: Test
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file from secrets
+        run: |
+          cat << EOF > .env
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASS=${{ secrets.DB_PASS }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          REDIS_HOST=${{ secrets.REDIS_HOST }}
+          MODE=${{ secrets.MODE }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          EOF
+
+      - name: Build and start services required for tests
+        run: docker compose up -d --build database redis backend
+
+      - name: Wait for database to be ready
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T database pg_isready -U ${{ secrets.DB_USER }}; then
+              echo "Database is ready"
+              break
+            fi
+            echo "Waiting for database..."
+            sleep 2
+          done
+
+      - name: Wait for backend to be ready
+        run: |
+          for i in {1..20}; do
+            if curl -s http://localhost:8000/health; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            echo "Attempt $i: backend not ready yet"
+            sleep 1
+          done
+          echo "Backend failed to start" && exit 1
+
+      - name: Run tests
+        run: docker compose exec -T backend pytest
+
+      - name: Stop services
+        if: always()
+        run: docker compose down
